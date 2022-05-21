@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using System.Linq;
 
 namespace ChatApp.Hubs
 {
@@ -22,6 +23,9 @@ namespace ChatApp.Hubs
 
             // send message to all clients in particular group (room)
             await Clients.Group(userConnection.Room).SendAsync("ReceiveMessage", _botUser, $"{userConnection.User} has joined {userConnection.Room}");
+
+            // send updated user list to client
+            await SendConnectedUsers(userConnection.Room);
         }
 
         public async Task SendMessage(string message)
@@ -37,13 +41,27 @@ namespace ChatApp.Hubs
 
         public override Task OnDisconnectedAsync(Exception? exception)
         {
+            // if connection
             if(_connections.TryGetValue(Context.ConnectionId, out UserConnection userConnection))
             {
+                //remove client
                 _connections.Remove(Context.ConnectionId);
+                //send message to other clients in group
                 Clients.Group(userConnection.Room)
                     .SendAsync("ReceiveMessage", _botUser, $"{userConnection.User} has left");
+                //send updated user list to room
+                SendConnectedUsers(userConnection.Room);
             }
             return base.OnDisconnectedAsync(exception);
+        }
+
+        public Task SendConnectedUsers(string room)
+        {
+            // filter connections by room, select only users
+            var users = _connections.Values
+                .Where(c => c.Room == room)
+                .Select(c => c.User);
+            return Clients.Group(room).SendAsync("UsersInRoom", users);
         }
     }
 }
