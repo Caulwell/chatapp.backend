@@ -13,6 +13,9 @@ builder.Services.AddCors(options =>
             .AllowCredentials();
     });
 });
+builder.Services.AddSingleton<IDictionary<string, UserConnection>>(options =>
+    new Dictionary<string, UserConnection>()
+);
 
 
 var app = builder.Build();
